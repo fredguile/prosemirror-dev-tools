@@ -1,18 +1,18 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-undef */
-
 import { filter, pipe } from "callbag-basics";
 
 import {
   fromChromeRuntimeMessages,
   fromWindowMessages,
   onlyFromExtension,
+  onlyOfType,
   reconnectOnUpgrade,
   replaySomeMessages,
   repostChromeMessage,
   repostWindowMessage,
   tap
 } from "./helpers";
+
+declare var chrome;
 
 // inject content script
 const script = document.createElement("script");
@@ -23,34 +23,31 @@ script.setAttribute(
 );
 document.documentElement.appendChild(script);
 
-// record window messages and replay them selectively when extension is showing
-const windowMessages = pipe(
-  fromWindowMessages(window),
-  onlyFromExtension(),
-  replaySomeMessages([
-    { type: "init", pick: "all" },
-    { type: "updateState", pick: "latest" }
-  ])
+let extensionShowing = false;
+
+// propagate init/update messages from hook to extensioon
+repostChromeMessage(chrome)(
+  pipe(
+    fromWindowMessages(window),
+    onlyFromExtension(),
+    onlyOfType(["init", "updateState"]),
+    filter(() => extensionShowing),
+    replaySomeMessages([
+      { type: "init", pick: "all" },
+      { type: "updateState", pick: "latest" }
+    ])
+  )
 );
 
-// this is active only when extension is showing
-let repostToChromeMessage = null;
-
-// relay extension messages to content script
+// propagate extension-showing messages from extension to hook
 repostWindowMessage(window)(
   pipe(
     fromChromeRuntimeMessages(chrome),
-    onlyFromExtension(),
+    onlyOfType(["extension-showing"]),
     tap(message => {
-      if (message.type === "extension-showing") {
-        if (message.payload) {
-          console.log("Extension showing...");
-          repostToChromeMessage = repostChromeMessage(chrome)(windowMessages);
-          return;
-        }
-        console.log("Extension hiding...");
-        repostToChromeMessage = null;
-      }
+      const { payload: showing } = message;
+      console.log(`Extension ${showing ? "showing" : "hiding"}...`);
+      extensionShowing = showing;
     })
   )
 );

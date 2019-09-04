@@ -1,17 +1,24 @@
-import { filter, forEach, map, pipe } from "callbag-basics";
+import { forEach, map, pipe } from "callbag-basics";
 
 import {
+  cloneObjExclKeys,
+  cloneObj,
   EXTENSION_SOURCE,
   fromWindowMessages,
   onlyFromExtension,
+  onlyOfType,
   randomId
 } from "./helpers";
 
 const editorViews = {};
 
-const cloneObj = obj => {
-  return JSON.parse(JSON.stringify(obj));
-};
+function clonePlugins(editorView) {
+  const { state } = editorView;
+  return state.plugins.map(plugin => ({
+    key: plugin.key,
+    state: cloneObjExclKeys(plugin.getState(state), [editorView])
+  }));
+}
 
 const hook = {
   extensionShowing: false,
@@ -20,8 +27,6 @@ const hook = {
     const editorId = randomId();
 
     editorViews[editorId] = editorView;
-
-    const schemaSpec = cloneObj(editorView.state.schema.spec);
 
     const {
       composing,
@@ -63,19 +68,17 @@ const hook = {
       shiftKey
     };
 
-    console.log(
-      editorView.state.plugins[1].getState(editorView.state),
-      23333333
-    );
+    console.log("init()...");
 
     window.postMessage(
       {
         source: EXTENSION_SOURCE,
         type: "init",
         payload: {
-          viewAttrs,
+          schemaSpec: cloneObj(editorView.state.schema.spec),
           state: editorView.state.toJSON(),
-          schemaSpec
+          pluginsAsJSON: JSON.stringify(clonePlugins(editorView)),
+          viewAttrs
         }
       },
       "*"
@@ -83,12 +86,14 @@ const hook = {
 
     return {
       updateState(state) {
+        console.log("updateState()...");
         window.postMessage(
           {
             source: EXTENSION_SOURCE,
             type: "updateState",
             payload: {
               state: state.toJSON()
+              // plugins: clonePlugins(editorView)
             }
           },
           "*"
@@ -144,7 +149,7 @@ forEach(
   pipe(
     fromWindowMessages(window),
     onlyFromExtension(),
-    filter(message => message.type === "extension-showing"),
+    onlyOfType("extension-showing"),
     map(message => message.payload)
   )
 );

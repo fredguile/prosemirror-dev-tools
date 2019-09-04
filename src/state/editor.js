@@ -206,17 +206,18 @@ export default class EditorStateContainer extends Container {
   }
 
   pushNewState(newState) {
-    const updatedHistory = false; // for now
-
     this.setState({
       state: newState,
       nodeColors: buildColors(newState.schema),
       activeMarks: getActiveMarks(newState),
-      history: updatedHistory || this.state.history,
-      selectedHistoryItem: updatedHistory ? 0 : this.state.selectedHistoryItem,
-      historyRolledBackTo: updatedHistory
-        ? false
-        : this.state.historyRolledBackTo
+      history: updateEditorHistory(
+        this.state.history,
+        this.state.historyRolledBackTo,
+        newState.tr,
+        newState
+      ),
+      selectedHistoryItem: this.state.history.length - 1,
+      historyRolledBackTo: false
     });
   }
 

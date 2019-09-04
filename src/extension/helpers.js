@@ -39,6 +39,16 @@ export function injectIntoTab(chrome, tab) {
   }
 }
 
+export function notifyCurrentTab(chrome, message) {
+  try {
+    chrome.tabs.query({ active: true }, tabs =>
+      chrome.tabs.sendMessage(tabs[0].id, message)
+    );
+  } catch (e) {
+    console.warn("could not notify tabs", e);
+  }
+}
+
 export function notifyTabs(chrome, message) {
   try {
     chrome.tabs.query({}, tabs =>
@@ -54,6 +64,29 @@ export const randomId = () =>
   Math.random()
     .toString(16)
     .slice(2);
+
+export const cloneObj = obj => JSON.parse(JSON.stringify(obj));
+
+export function cloneObjExclKeys(obj, keys = [], maxDepth = 10, ...rest) {
+  const depth = rest.shift() || 0;
+
+  if (typeof obj !== "object" || !obj) {
+    return obj;
+  }
+
+  return Object.keys(obj).reduce((acc, key) => {
+    if (keys.indexOf(obj[key]) !== -1 || depth >= maxDepth) {
+      return acc;
+    }
+
+    return Object.assign({}, acc, {
+      [key]:
+        typeof obj[key] === "object" && depth < maxDepth
+          ? cloneObjExclKeys(obj[key], keys, maxDepth, depth + 1)
+          : obj[key]
+    });
+  }, {});
+}
 
 // callbags sources
 export function fromWindowMessages(window) {
@@ -100,51 +133,16 @@ export function mute() {
   };
 }
 
-export function onlyFromExtension() {
-  return source => (start, sink) => {
-    if (start !== 0) return;
-    let talkback;
-    source(0, (type, data) => {
-      if (type === 0) {
-        talkback = data;
-      }
+export const onlyFromExtension = () =>
+  filter(
+    message =>
+      typeof message === "object" && message.source === EXTENSION_SOURCE
+  );
 
-      if (type === 1) {
-        if (typeof data === "object" && data.source === EXTENSION_SOURCE) {
-          sink(type, data);
-        } else {
-          talkback(1);
-        }
-        return;
-      }
-
-      sink(type, data);
-    });
-  };
-}
-
-export function onlyOfType(types = []) {
-  return source => (start, sink) => {
-    if (start !== 0) return;
-    let talkback;
-    source(0, (type, data) => {
-      if (type === 0) {
-        talkback = data;
-      }
-
-      if (type === 1) {
-        if (typeof data === "object" && types.indexOf(data.type) !== -1) {
-          sink(type, data);
-        } else {
-          talkback(1);
-        }
-        return;
-      }
-
-      sink(type, data);
-    });
-  };
-}
+export const onlyOfType = (types = []) =>
+  filter(
+    message => typeof message === "object" && types.indexOf(message.type) !== -1
+  );
 
 // inspired by https://github.com/ds82/callbag-replay-all
 //

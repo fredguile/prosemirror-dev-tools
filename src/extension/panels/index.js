@@ -1,6 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-undef */
-
 import * as React from "react";
 import * as ReactDom from "react-dom";
 import { Schema } from "prosemirror-model";
@@ -12,31 +9,23 @@ import * as OrderedMap from "orderedmap";
 import {
   fromChromeRuntimeMessages,
   onlyFromExtension,
-  onlyOfType,
-  tap
+  onlyOfType
 } from "../helpers";
 
 import DevTools from "../../dev-tools-extension";
 import EditorStateContainer from "../../state/editor";
 import GlobalStateContainer from "../../state/global";
 
+declare var chrome;
+
 const globalState = new GlobalStateContainer({ opened: true, defaultSize: 1 });
 let editorState;
-let initialized = false;
 let schema = null;
 
 globalState.toggleDevTools();
 
-function DevToolsExtension() {
-  return (
-    <Provider inject={[globalState, editorState]}>
-      <DevTools />
-    </Provider>
-  );
-}
-
 const initHandler = message => {
-  const { schemaSpec, state, viewAttrs } = message.payload;
+  const { schemaSpec, state, pluginsAsJSON, viewAttrs } = message.payload;
 
   let nodesMap = OrderedMap.from({});
   let marksMap = OrderedMap.from({});
@@ -62,8 +51,17 @@ const initHandler = message => {
     marks: marksMap
   });
 
+  const editorState = EditorState.fromJSON(
+    { schema, plugins: JSON.parse(pluginsAsJSON) },
+    state
+  );
+
+  for (let i = 0; i < editorState.plugins.length; ++i) {
+    editorState.plugins[i].getState = () => editorState.plugins[i].state;
+  }
+
   const editorView = {
-    state: EditorState.fromJSON({ schema }, state),
+    state: editorState,
     _props: {
       dispatchTransaction: () => {}
     }
@@ -74,32 +72,42 @@ const initHandler = message => {
   return editorView;
 };
 
+const updateHandler = message => {
+  const { state, pluginsAsJSON } = message.payload;
+  return EditorState.fromJSON({ schema, plugins: parse(pluginsAsJSON) }, state);
+};
+
 forEach(message => {
   const { type, payload } = message;
 
-  if (type === "init") {
-    try {
-      const editorView = initHandler(message);
+  switch (type) {
+    case "init": {
+      try {
+        const editorView = initHandler(message);
+        editorState = new EditorStateContainer(editorView, { EditorState });
+        ReactDom.render(
+          <Provider inject={[globalState, editorState]}>
+            <DevTools />
+          </Provider>,
+          document.getElementById("root")
+        );
+      } catch (e) {
+        console.error("Could not initialize devtools from Editor!", e);
+      }
+      break;
+    }
 
-      editorState = new EditorStateContainer(editorView, { EditorState });
-      initialized = true;
-      ReactDom.render(<DevToolsExtension />, document.getElementById("root"));
-    } catch (e) {
-      console.error("Could not initialize devtools from Editor!", e);
+    case "update": {
+      const { state } = payload;
+      const newState = EditorState.fromJSON({ schema }, state); // TODO: plugins
+      editorState.pushNewState(newState);
+      break;
     }
-  } else if (type === "updateState") {
-    const { state } = payload;
-    if (!initialized) {
-      return;
-    }
-    const newState = EditorState.fromJSON({ schema }, state);
-    editorState.pushNewState(newState);
   }
 })(
   pipe(
     fromChromeRuntimeMessages(chrome),
     onlyFromExtension(),
     onlyOfType(["init", "updateState"])
-    // tap(message => console.log(`Got Editor msg: ${JSON.stringify(message)}`))
   )
 );

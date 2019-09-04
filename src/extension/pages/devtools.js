@@ -1,9 +1,9 @@
-/* eslint-disable no-undef */
-
 import "../resources/icons/icon-16.png";
 import "../resources/icons/icon-128.png";
 
-import { EXTENSION_SOURCE, notifyTabs, reconnectOnUpgrade } from "../helpers";
+import { EXTENSION_SOURCE, notifyCurrentTab } from "../helpers";
+
+declare var chrome;
 
 chrome.devtools.panels.create(
   "ProseMirror",
@@ -11,14 +11,14 @@ chrome.devtools.panels.create(
   "panels.html",
   panel => {
     panel.onShown.addListener(() =>
-      notifyTabs(chrome, {
+      notifyCurrentTab(chrome, {
         source: EXTENSION_SOURCE,
         type: "extension-showing",
         payload: true
       })
     );
     panel.onHidden.addListener(() =>
-      notifyTabs(chrome, {
+      notifyCurrentTab(chrome, {
         source: EXTENSION_SOURCE,
         type: "extension-showing",
         payload: false
@@ -26,5 +26,3 @@ chrome.devtools.panels.create(
     );
   }
 );
-
-reconnectOnUpgrade(chrome);
