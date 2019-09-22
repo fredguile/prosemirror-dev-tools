@@ -19,6 +19,9 @@ var fileExtensions = [
   "woff2"
 ];
 
+const ouputDir =
+  process.env.OUTDIR || path.resolve(__dirname, "../dist/extension");
+
 module.exports = {
   devtool:
     process.env.NODE_ENV === "development" ? "inline-source-map" : undefined,
@@ -37,7 +40,7 @@ module.exports = {
   },
   output: {
     filename: "[name].js",
-    path: path.resolve(__dirname, "../dist/extension"),
+    path: ouputDir,
     libraryExport: "default"
   },
   plugins: [
