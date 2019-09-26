@@ -27,7 +27,8 @@ function createPlace() {
 
 function applyDevTools(editorView, props) {
   const place = createPlace();
-  const editorState = new EditorStateContainer(editorView, props);
+  const editorState = new EditorStateContainer(props);
+  editorState.init(editorView);
 
   ReactDOM.render(
     <Provider inject={[editorState]}>

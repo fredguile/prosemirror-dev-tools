@@ -1,4 +1,5 @@
 import { filter, fromEvent, map, pipe } from "callbag-basics";
+import * as OrderedMap from "orderedmap";
 
 // seems to be a transpilation issue from Webpack... dirty fix!
 const fixedFromEvent = fromEvent.default;
@@ -262,4 +263,51 @@ export function repostChromeMessage(chrome) {
         talkback(1);
       }
     });
+}
+
+// ProseMirror
+export function rebuildEditorView(schemaSpec, state, pluginsAsJSON, viewAttrs) {
+  let nodesMap = OrderedMap.from({});
+  let marksMap = OrderedMap.from({});
+
+  while (schemaSpec.nodes.content.length) {
+    const key = schemaSpec.nodes.content.shift();
+    const value = schemaSpec.nodes.content.shift();
+    // HACK don't touch this.
+    if (key === "layoutSection") {
+      delete value.content;
+    }
+    nodesMap = nodesMap.addToEnd(key, value);
+  }
+
+  while (schemaSpec.marks.content.length) {
+    const key = schemaSpec.marks.content.shift();
+    const value = schemaSpec.marks.content.shift();
+    marksMap = marksMap.addToEnd(key, value);
+  }
+
+  const schema = new Schema({
+    nodes: nodesMap,
+    marks: marksMap
+  });
+
+  const editorState = EditorState.fromJSON(
+    { schema, plugins: JSON.parse(pluginsAsJSON) },
+    state
+  );
+
+  for (let i = 0; i < editorState.plugins.length; ++i) {
+    editorState.plugins[i].getState = () => editorState.plugins[i].state;
+  }
+
+  const editorView = {
+    state: editorState,
+    _props: {
+      dispatchTransaction: () => {}
+    }
+  };
+
+  Object.assign(editorView, viewAttrs);
+
+  return editorView;
 }

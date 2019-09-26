@@ -68,8 +68,6 @@ const hook = {
       shiftKey
     };
 
-    console.log("init()...");
-
     window.postMessage(
       {
         source: EXTENSION_SOURCE,
@@ -86,7 +84,6 @@ const hook = {
 
     return {
       updateState(state) {
-        console.log("updateState()...");
         window.postMessage(
           {
             source: EXTENSION_SOURCE,

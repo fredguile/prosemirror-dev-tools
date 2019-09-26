@@ -144,11 +144,17 @@ export default function StateTab() {
   return (
     <Subscribe to={[EditorStateContainer, StateTabStateContainer]}>
       {(editorState, stateTab) => {
-        const { logNodeFromJSON } = editorState;
-        const { state, activeMarks, expandPath } = editorState.state;
-        const { toggleSelection } = stateTab;
-        const { selectionExpanded } = stateTab.state;
-        const doc = state.doc.toJSON();
+        const {
+          logNodeFromJSON,
+          state: { state, activeMarks, expandPath }
+        } = editorState;
+
+        const {
+          state: { selectionExpanded },
+          toggleSelection
+        } = stateTab;
+
+        const doc = state.doc ? state.doc.toJSON() : null;
 
         return (
           <SplitView>
@@ -210,11 +216,15 @@ export default function StateTab() {
                 <Group>
                   <GroupRow>
                     <Key>nodeSize:</Key>
-                    <ValueNum>{state.doc.nodeSize}</ValueNum>
+                    <ValueNum>
+                      {(state.doc && state.doc.nodeSize) || 0}
+                    </ValueNum>
                   </GroupRow>
                   <GroupRow>
                     <Key>childCount:</Key>
-                    <ValueNum>{state.doc.childCount}</ValueNum>
+                    <ValueNum>
+                      {(state.doc && state.doc.childCount) || 0}
+                    </ValueNum>
                   </GroupRow>
                 </Group>
               </Section>

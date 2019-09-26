@@ -171,11 +171,16 @@ export default class EditorStateContainer extends Container {
     nodePicker: NODE_PICKER_DEFAULT
   };
 
-  constructor(editorView, props) {
+  constructor(props) {
     super();
 
     this.state = Object.assign({}, this.state, {
-      EditorState: getEditorStateClass(props),
+      EditorState: getEditorStateClass(props)
+    });
+  }
+
+  init(editorView) {
+    this.setState({
       view: editorView,
       state: editorView.state,
       nodeColors: buildColors(editorView.state.schema),
